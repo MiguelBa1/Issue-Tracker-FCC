@@ -10,9 +10,8 @@ module.exports = function (app) {
     .get(function (req, res){
       let projectName = req.params.project;
       let Project = model(projectName, projectSchema)
-      Project.find({}, function(err, issues) {
+      Project.find(req.query, function(err, issues) {
         if (err) throw err
-        //console.log(issues)
         res.json(issues)
       })
     })
@@ -28,21 +27,60 @@ module.exports = function (app) {
         assigned_to: req.body.assigned_to,
         status_text: req.body.status_text
       })
-      issue = await issue.save(function(err) {
-        if (err) res.json({ error: 'required field(s) missing' })
+      issue.save(function(err) {
+        if (err) {
+          res.json({ error: 'required field(s) missing' })
+          return
+        }
+        res.send(issue)
       })
-      //console.log(issue)
-      res.send(issue)
     })
     
     .put(function (req, res){
-      let project = req.params.project;
+      if (!req.body.hasOwnProperty('_id')) {
+        res.json({ error: 'missing _id' })
+        return
+      }
+      //console.log(Object.keys(req.body), Object.keys(req.body).length)
+      if (Object.keys(req.body).length != 6){
+        res.json({ error: 'no update field(s) sent', '_id': req.body._id })
+        return
+      }
+
+      let projectName = req.params.project;
+      let Project = model(projectName, projectSchema)
+
+      Project.findOneAndUpdate({_id: req.body._id}, {
+        issue_title: req.body.issue_title,
+        issue_text: req.body.issue_text,
+        created_by: req.body.created_by,
+        assigned_to: req.body.assigned_to,
+        status_text: req.body.status_text,
+        updated_on: new Date()
+      }, function(err, issue) {
+        if (!issue) {
+          res.send({ error: 'could not update', '_id': req.body._id })
+          return
+        }
+        res.send({  result: 'successfully updated', '_id': issue._id })
+      })
       
     })
     
     .delete(function (req, res){
-      let project = req.params.project;
-      
+      if (!req.body.hasOwnProperty('_id')) {
+        res.json({ error: 'missing _id' })
+        return
+      }
+      let projectName = req.params.project;
+      let Project = model(projectName, projectSchema)
+      Project.findByIdAndRemove(req.body._id, (err, issue) => {
+        if (!issue) {
+          res.json({ error: 'could not delete', '_id': req.body._id })
+          return
+        }
+        res.json({ result: 'successfully deleted', '_id': req.body._id })
+      })
     });
     
 };
